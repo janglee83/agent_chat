@@ -26,7 +26,13 @@ export const CONFIG_FILES = ['**/*.config.{js,mjs,cjs,ts,mts}'];
  */
 export function base({ tsconfigRootDir }) {
   return defineConfig(
-    globalIgnores(['**/dist/**', '**/coverage/**', '**/node_modules/**', '**/*.d.ts']),
+    globalIgnores([
+      '**/dist/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/*.d.ts',
+      '**/generated/**',
+    ]),
 
     // ---------- Recommended presets (strictest available) ----------
     eslint.configs.recommended,
@@ -148,6 +154,19 @@ export function base({ tsconfigRootDir }) {
         '@typescript-eslint/no-loop-func': 'error',
         '@typescript-eslint/default-param-last': 'error',
         '@typescript-eslint/method-signature-style': ['error', 'property'],
+        '@typescript-eslint/member-ordering': [
+          'error',
+          {
+            default: [
+              'signature',
+              'field',
+              'constructor',
+              'public-method',
+              'protected-method',
+              'private-method',
+            ],
+          },
+        ],
         '@typescript-eslint/no-unused-vars': [
           'error',
           { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'all' },
@@ -236,6 +255,8 @@ export function base({ tsconfigRootDir }) {
         'unicorn/import-style': 'off', // named imports from node:* are clearer
         'unicorn/no-array-reduce': 'error',
         'unicorn/no-useless-undefined': ['error', { checkArguments: false }],
+        // Class layout: fields → constructor → public → protected → private (see member-ordering).
+        'unicorn/consistent-class-member-order': 'off',
         'sonarjs/cognitive-complexity': ['error', 10],
         'sonarjs/todo-tag': 'warn',
       },
@@ -256,6 +277,8 @@ export function base({ tsconfigRootDir }) {
         'vitest/prefer-strict-equal': 'error',
         'max-lines-per-function': 'off',
         'max-nested-callbacks': 'off',
+        // Test factories/mocks rely on inferred types.
+        '@typescript-eslint/explicit-function-return-type': 'off',
         '@typescript-eslint/no-unsafe-assignment': 'off',
         '@typescript-eslint/no-unsafe-member-access': 'off',
         '@typescript-eslint/unbound-method': 'off',

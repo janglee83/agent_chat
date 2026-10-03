@@ -3,3 +3,4 @@ pnpm-lock.yaml
 **/coverage/
 **/node_modules/
 **/*.tsbuildinfo
+**/generated/

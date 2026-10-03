@@ -1,20 +1,22 @@
 # agent_chat
 
-Monolith gồm **NestJS backend** + **React (Vite) frontend** trong một pnpm workspace, đóng gói thành **một Docker image**: NestJS phục vụ API tại `/api/*` và SPA đã build cho mọi đường dẫn còn lại.
+Monolith gồm **NestJS backend** (PostgreSQL qua Prisma, Redis) + **React (Vite) frontend** trong một pnpm workspace, đóng gói thành **một Docker image**: NestJS phục vụ API tại `/api/*` và SPA đã build cho mọi đường dẫn còn lại.
 
 ## Cấu trúc
 
 ```
 .
 ├── apps/
-│   ├── backend/            # NestJS 12 (ESM, Node 24)
+│   ├── backend/            # NestJS 12 (ESM, Node 24) · Prisma 7 · Redis
 │   └── frontend/           # React 19 + Vite 8
 ├── packages/
 │   ├── eslint-config/      # Rule ESLint dùng chung: base / node / react
 │   └── tsconfig/           # tsconfig strict dùng chung: base / node / react
 ├── .husky/                 # pre-commit, commit-msg, pre-push
 ├── .github/                # CI, PR template, CODEOWNERS, Dependabot
-├── docs/CODE_STANDARDS.md  # Cơ chế bắt buộc tuân thủ chuẩn code
+├── docs/
+│   ├── BACKEND_ARCHITECTURE.md  # Cấu trúc backend, Prisma, RedisService
+│   └── CODE_STANDARDS.md        # Cơ chế bắt buộc tuân thủ chuẩn code
 ├── Dockerfile              # Multi-stage build → 1 image monolith
 └── docker-compose.yml
 ```
@@ -23,13 +25,19 @@ Monolith gồm **NestJS backend** + **React (Vite) frontend** trong một pnpm w
 
 - Node **24 LTS** (`nvm use` đọc `.nvmrc`)
 - pnpm **12** — version được pin trong `packageManager`, pnpm tự chuyển đúng version
+- Docker (để chạy PostgreSQL + Redis local)
 
 ## Bắt đầu
 
 ```bash
-pnpm install          # cài deps + cài git hooks (husky)
-pnpm dev              # backend :3000 + frontend :5173 (proxy /api → backend)
+pnpm install                                   # cài deps, sinh Prisma Client, cài git hooks
+cp apps/backend/.env.example apps/backend/.env
+pnpm infra:up                                  # PostgreSQL 18 + Redis 8 (docker compose)
+pnpm --filter backend db:deploy                # apply migrations
+pnpm dev                                       # backend :3000 + frontend :5173 (proxy /api → backend)
 ```
+
+Cổng 5432/6379 đã bị chiếm? `POSTGRES_HOST_PORT=55432 REDIS_HOST_PORT=56379 pnpm infra:up` rồi sửa URL trong `.env`.
 
 ## Scripts
 
@@ -48,10 +56,11 @@ pnpm dev              # backend :3000 + frontend :5173 (proxy /api → backend)
 ## Docker
 
 ```bash
-docker build -t agent-chat .
-docker run -p 3000:3000 agent-chat
-curl localhost:3000/api/health
+pnpm docker:up                          # postgres → migrate (prisma migrate deploy) → app
+curl localhost:3000/api/health/ready    # {"status":"ok", ... database: up, redis: up}
 ```
+
+Image có 2 target: `runtime` (app) và `migrator` (chạy migration một lần trước mỗi lần release).
 
 ## Quy chuẩn code
 

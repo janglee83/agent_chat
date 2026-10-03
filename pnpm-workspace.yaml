@@ -7,4 +7,6 @@ engineStrict: true
 strictPeerDependencies: true
 # Only listed packages may run install scripts.
 allowBuilds:
+  '@prisma/engines': true
+  prisma: true
   unrs-resolver: false

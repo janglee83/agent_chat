@@ -13,6 +13,8 @@
     "docker:up": "docker compose up --build",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
+    "infra:down": "docker compose down",
+    "infra:up": "docker compose up -d --wait postgres redis",
     "lint": "eslint . --max-warnings=0 && pnpm --recursive --filter \"./apps/*\" lint",
     "lint:fix": "eslint . --fix && pnpm --recursive --filter \"./apps/*\" lint:fix",
     "prepare": "husky",

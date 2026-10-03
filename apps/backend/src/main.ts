@@ -2,15 +2,18 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
+import type { AppEnv } from './config/env.js';
+
 import { AppModule } from './app.module.js';
-import { loadEnv } from './config/env.js';
+import { APP_ENV } from './config/config.constants.js';
 import { API_PREFIX } from './constants.js';
 
 async function bootstrap(): Promise<void> {
-  const env = loadEnv();
   const app = await NestFactory.create(AppModule);
+  const env = app.get<AppEnv>(APP_ENV);
 
   app.setGlobalPrefix(API_PREFIX);
+  // Runs onModuleDestroy / onApplicationShutdown on SIGTERM: closes DB pool and Redis cleanly.
   app.enableShutdownHooks();
 
   await app.listen(env.port, '0.0.0.0');

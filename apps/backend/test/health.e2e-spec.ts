@@ -7,10 +7,11 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { API_PREFIX } from '../src/constants.js';
 
+// Requires PostgreSQL + Redis (`pnpm infra:up` locally, service containers in CI).
 describe('Health (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
 
     app = moduleRef.createNestApplication();
@@ -18,13 +19,22 @@ describe('Health (e2e)', () => {
     await app.init();
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 
-  it('GET /api/health returns ok', async () => {
+  it('GET /api/health reports liveness', async () => {
     const response = await request(app.getHttpServer()).get('/api/health').expect(200);
 
     expect(response.body).toMatchObject({ status: 'ok' });
+  });
+
+  it('GET /api/health/ready reports database and redis up', async () => {
+    const response = await request(app.getHttpServer()).get('/api/health/ready').expect(200);
+
+    expect(response.body).toMatchObject({
+      status: 'ok',
+      details: { database: { status: 'up' }, redis: { status: 'up' } },
+    });
   });
 });

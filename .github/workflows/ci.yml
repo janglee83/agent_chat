@@ -38,6 +38,26 @@ jobs:
     name: Format · Lint · Typecheck · Test · Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: agent_chat
+          POSTGRES_PASSWORD: agent_chat
+          POSTGRES_DB: agent_chat
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U agent_chat -d agent_chat"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:8.10.2-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://agent_chat:agent_chat@localhost:5432/agent_chat?schema=public
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -49,13 +69,21 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prettier
         run: pnpm format:check
+      - name: Prisma schema (validate + format)
+        run: pnpm --filter backend db:check
       - name: ESLint (zero warnings)
         run: pnpm lint
       - name: Typecheck
         run: pnpm typecheck
       - name: Unit tests
         run: pnpm test
-      - name: Backend e2e tests
+      - name: Apply migrations
+        run: pnpm --filter backend db:deploy
+      - name: Fail if schema.prisma has changes without a migration
+        run: >
+          pnpm --filter backend exec prisma migrate diff
+          --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+      - name: Backend e2e tests (real PostgreSQL + Redis)
         run: pnpm --filter backend test:e2e
       - name: Build
         run: pnpm build
@@ -64,25 +92,17 @@ jobs:
     name: Docker image
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - name: Build image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          load: true
-          push: false
-          tags: agent-chat:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Smoke test
+      - name: Smoke test full stack (postgres → migrate → app)
         run: |
-          docker run -d --name app -p 3000:3000 agent-chat:ci
-          for i in $(seq 1 20); do
-            if curl -fsS http://localhost:3000/api/health; then exit 0; fi
-            sleep 1
-          done
-          docker logs app
-          exit 1
+          docker compose up --build --detach --wait
+          curl -fsS http://localhost:3000/api/health/ready
+          curl -fsS http://localhost:3000/ | grep -q '<div id="root">'
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Tear down
+        if: always()
+        run: docker compose down --volumes
