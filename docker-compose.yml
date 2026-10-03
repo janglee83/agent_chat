@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agent-chat:local
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true

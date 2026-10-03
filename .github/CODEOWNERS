@@ -1,0 +1,5 @@
+# Every change needs a review from an owner (enable "Require review from Code Owners").
+*                       @janglee83
+/packages/eslint-config/ @janglee83
+/packages/tsconfig/     @janglee83
+/.github/               @janglee83

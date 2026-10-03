@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/coverage
+**/.eslintcache
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+.git
+.github
+.husky
+.vscode
+.idea
+docs
+*.md
+Dockerfile
+docker-compose.yml

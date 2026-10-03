@@ -1,0 +1,11 @@
+{
+  "extends": "@agent-chat/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src", "test", "*.config.ts"]
+}

@@ -1,0 +1,51 @@
+{
+  "name": "backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent chat API (NestJS)",
+  "license": "UNLICENSED",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "lint": "eslint . --max-warnings=0 --cache",
+    "lint:fix": "eslint . --fix --cache",
+    "start": "nest start",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main.js",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "test:e2e": "vitest run --config ./vitest.e2e.config.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.1.2",
+    "@nestjs/core": "^12.1.2",
+    "@nestjs/platform-express": "^12.1.2",
+    "@nestjs/serve-static": "^12.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@agent-chat/eslint-config": "workspace:*",
+    "@agent-chat/tsconfig": "workspace:*",
+    "@nestjs/cli": "^12.0.8",
+    "@nestjs/schematics": "^12.0.6",
+    "@nestjs/testing": "^12.1.2",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.1",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.11.0",
+    "supertest": "^7.3.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
