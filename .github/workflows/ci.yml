@@ -89,20 +89,23 @@ jobs:
         run: pnpm build
 
   docker:
-    name: Docker image
+    name: Docker dev stack
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Smoke test full stack (postgres → migrate → app)
+      - name: Start the whole dev stack (incl. observability)
+        run: docker compose --profile observability up --build --detach --wait
+      - name: Smoke test
         run: |
-          docker compose up --build --detach --wait
           curl -fsS http://localhost:3000/api/health/ready
-          curl -fsS http://localhost:3000/ | grep -q '<div id="root">'
+          curl -fsS http://localhost:5173/api/health
+          curl -fsS http://localhost:5173/ | grep -q '@vite/client'
+          curl -fsS -u admin:admin http://localhost:3001/api/health
       - name: Logs on failure
         if: failure()
-        run: docker compose logs
+        run: docker compose --profile observability logs
       - name: Tear down
         if: always()
-        run: docker compose down --volumes
+        run: docker compose --profile observability down --volumes

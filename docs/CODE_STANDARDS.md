@@ -53,14 +53,14 @@ Hook cài tự động qua script `prepare` khi `pnpm install`. **Lưu ý:** hoo
 
 1. **commitlint** — kiểm tra _mọi_ commit trong PR (bắt cả commit đã `--no-verify`).
 2. **quality** — `install --frozen-lockfile` → Prettier → ESLint → typecheck → unit test → e2e → build.
-3. **docker** — build image và smoke test `GET /api/health`.
+3. **docker** — dựng toàn bộ stack dev (postgres, redis, backend, frontend, otel-lgtm) bằng Docker Compose rồi smoke test.
 
 ### 5. Branch ruleset trên GitHub — biến CI thành "bắt buộc"
 
 CI chỉ _báo_ đỏ; **ruleset** mới _chặn merge_. Cần bật cho `main` (Settings → Rules → Rulesets, hoặc dùng lệnh bên dưới):
 
-- Bắt buộc Pull Request, ≥ 1 approval, **Require review from Code Owners**, dismiss approval cũ khi có commit mới, phải resolve hết conversation.
-- **Required status checks:** `Commit messages`, `Format · Lint · Typecheck · Test · Build`, `Docker image`; yêu cầu nhánh up-to-date trước khi merge.
+- **Đang bật** (ruleset `protect-main`) ở chế độ làm một mình: bắt buộc Pull Request, 0 approval (tăng lên khi có thêm người), dismiss approval cũ khi có commit mới, phải resolve hết conversation.
+- **Required status checks:** `Commit messages`, `Format · Lint · Typecheck · Test · Build`, `Docker dev stack`; yêu cầu nhánh up-to-date trước khi merge.
 - Cấm force-push và xoá nhánh; linear history (squash/rebase merge).
 - Không cho bypass (kể cả admin).
 
@@ -77,23 +77,23 @@ gh api -X POST repos/janglee83/agent_chat/rulesets --input - <<'JSON'
     { "type": "non_fast_forward" },
     { "type": "required_linear_history" },
     { "type": "pull_request", "parameters": {
-        "required_approving_review_count": 1,
-        "require_code_owner_review": true,
+        "required_approving_review_count": 0,
+        "require_code_owner_review": false,
         "dismiss_stale_reviews_on_push": true,
-        "require_last_push_approval": true,
+        "require_last_push_approval": false,
         "required_review_thread_resolution": true } },
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": true,
         "required_status_checks": [
           { "context": "Commit messages" },
           { "context": "Format · Lint · Typecheck · Test · Build" },
-          { "context": "Docker image" } ] } }
+          { "context": "Docker dev stack" } ] } }
   ]
 }
 JSON
 ```
 
-> Repo một người: `required_approving_review_count: 1` sẽ chặn chính bạn (không tự approve PR của mình được). Khi làm một mình, đặt `0` nhưng giữ nguyên required status checks.
+> JSON trên đúng với ruleset đang bật (làm một mình). Khi có thêm người: tăng `required_approving_review_count` lên `1`, bật `require_code_owner_review` và `require_last_push_approval`. Ruleset đã tồn tại thì sửa bằng `PUT repos/janglee83/agent_chat/rulesets/<id>`.
 
 ### 6. Chuỗi cung ứng & môi trường
 
@@ -101,7 +101,7 @@ JSON
 - `strictPeerDependencies`: peer dependency lệch là fail.
 - `allowBuilds`: chỉ package được duyệt mới được chạy install script.
 - pnpm 12 kiểm tra _supply-chain policy_ (độ tuổi tối thiểu của bản release) nên đôi khi cài bản mới nhất trừ vài ngày gần đây — đó là cố ý.
-- `--frozen-lockfile` trong CI/Docker: lockfile phải khớp `package.json`.
+- `--frozen-lockfile` trong CI và Docker: lockfile phải khớp `package.json`.
 - Dependabot cập nhật hàng tuần, commit message cũng theo Conventional Commits.
 
 ## Áp dụng rule mới vào code đã có (ratchet)

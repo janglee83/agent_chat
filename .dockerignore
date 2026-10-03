@@ -1,17 +1,2 @@
-**/node_modules
-**/dist
-**/generated
-**/coverage
-**/.eslintcache
-**/*.tsbuildinfo
-**/.env
-**/.env.*
-.git
-.github
-.husky
-.vscode
-.idea
-docs
-*.md
-Dockerfile
-docker-compose.yml
+# The dev image copies nothing from the repo (source is bind-mounted), so send no context.
+*

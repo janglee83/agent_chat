@@ -5,6 +5,7 @@ import { RedisService } from './redis.service.js';
 
 const env: AppEnv = {
   nodeEnv: 'test',
+  logLevel: 'info',
   port: 3000,
   staticDir: '/tmp',
   databaseUrl: 'postgresql://localhost/db',

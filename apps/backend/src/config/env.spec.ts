@@ -25,12 +25,23 @@ describe('loadEnv', () => {
 
     expect(env).toStrictEqual({
       nodeEnv: 'production',
+      logLevel: 'info',
       port: 8080,
       staticDir: '/srv/public',
       databaseUrl: REQUIRED.DATABASE_URL,
       redisUrl: REQUIRED.REDIS_URL,
       redisKeyPrefix: 'x:',
     });
+  });
+
+  it('defaults LOG_LEVEL to debug outside production', () => {
+    expect(loadEnv({ ...REQUIRED }).logLevel).toBe('debug');
+  });
+
+  it('rejects an unknown LOG_LEVEL', () => {
+    expect(() => loadEnv({ ...REQUIRED, LOG_LEVEL: 'verbose' })).toThrow(
+      'LOG_LEVEL must be one of',
+    );
   });
 
   it('rejects an invalid port', () => {

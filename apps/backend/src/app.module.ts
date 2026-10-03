@@ -9,11 +9,13 @@ import { API_PREFIX } from './constants.js';
 import { HealthModule } from './health/health.module.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { RedisModule } from './infrastructure/redis/redis.module.js';
+import { ObservabilityModule } from './observability/observability.module.js';
 
 @Module({
   imports: [
-    // Infrastructure (global): config, PostgreSQL via Prisma, Redis.
+    // Infrastructure (global): config, logs/request context, PostgreSQL via Prisma, Redis.
     ConfigModule,
+    ObservabilityModule,
     DatabaseModule,
     RedisModule,
     // Monolith: the same process serves the API under /api and the built SPA everywhere else.

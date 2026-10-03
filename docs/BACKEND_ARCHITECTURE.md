@@ -77,7 +77,7 @@ pnpm --filter backend db:migrate --name add_user_table   # tạo SQL + apply và
 # 2. commit cả schema.prisma lẫn thư mục migration mới
 ```
 
-- Production: service `migrate` (Docker target `migrator`) chạy `prisma migrate deploy` **trước** khi app start; app chỉ start khi migrate thành công.
+- Dev trong Docker: `docker compose exec backend pnpm db:migrate`. Docker không tự chạy migration, vì dự án chỉ có môi trường dev.
 - CI fail nếu `schema.prisma` thay đổi mà không có migration (`prisma migrate diff --exit-code`).
 - Không sửa migration đã merge — luôn tạo migration mới.
 
@@ -125,12 +125,27 @@ const messages = await this.redis.remember({
 
 ## Health check
 
-| Endpoint                | Ý nghĩa                                                       | Dùng cho                           |
-| ----------------------- | ------------------------------------------------------------- | ---------------------------------- |
-| `GET /api/health`       | Liveness: process còn sống. **Không** kiểm tra dependency     | Docker `HEALTHCHECK`, k8s liveness |
-| `GET /api/health/ready` | Readiness: PostgreSQL + Redis phản hồi, nếu không thì trả 503 | Load balancer, k8s readiness       |
+| Endpoint                | Ý nghĩa                                                       | Dùng cho                       |
+| ----------------------- | ------------------------------------------------------------- | ------------------------------ |
+| `GET /api/health`       | Liveness: process còn sống. **Không** kiểm tra dependency     | healthcheck của Docker Compose |
+| `GET /api/health/ready` | Readiness: PostgreSQL + Redis phản hồi, nếu không thì trả 503 | Load balancer, k8s readiness   |
 
 Tách hai endpoint để khi DB sập thì orchestrator chỉ **ngừng route traffic** tới instance, không restart hàng loạt container.
+
+## Observability
+
+`src/instrumentation.ts` khởi tạo OpenTelemetry **trước** app (`node --import ./dist/instrumentation.js`). Backend là ESM nên phải đăng ký loader hook `import-in-the-middle` trước, nếu không auto-instrumentation sẽ không patch được gì. Mọi thứ được gửi qua OTLP tới `grafana/otel-lgtm`:
+
+| Tín hiệu | Nguồn                                                       | Xem ở                |
+| -------- | ----------------------------------------------------------- | -------------------- |
+| Trace    | HTTP, NestJS, Prisma (`@prisma/instrumentation`), pg, Redis | Grafana → Tempo      |
+| Log      | pino (`nestjs-pino`), tự gắn `trace_id`/`span_id`, gửi OTLP | Grafana → Loki       |
+| Metric   | `http_server_request_duration`, `db_client_*`, runtime Node | Grafana → Prometheus |
+
+- Mỗi request có một **request id**: dùng lại `x-request-id` gửi lên nếu hợp lệ, không thì tự sinh, và trả về trong response header. Lấy ra trong code bằng `ClsService.getId()` (`nestjs-cls`).
+- Đã tắt instrumentation `fs`, `net`, `dns`, `express`, `router` (quá nhiễu: mỗi middleware một span) và bỏ qua `/api/health*`.
+- Cấu hình hoàn toàn bằng biến chuẩn `OTEL_*`. Đặt `OTEL_SDK_DISABLED=true` để tắt.
+- Dev trên máy host: `pnpm docker:up:obs` (hoặc chỉ service `lgtm`), sau đó `pnpm dev`. `.env.example` đã trỏ sẵn tới `localhost:4317`.
 
 ## Test
 
