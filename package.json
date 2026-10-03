@@ -1,0 +1,43 @@
+{
+  "name": "agent-chat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent chat monolith: NestJS backend + React (Vite) frontend",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter \"./apps/*\" build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "commitlint": "commitlint",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "docker:down": "docker compose --profile observability down",
+    "docker:up": "docker compose up --build",
+    "docker:up:obs": "docker compose --profile observability up --build",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "infra:up": "docker compose up -d --wait postgres redis",
+    "lint": "eslint . --max-warnings=0 && pnpm --recursive --filter \"./apps/*\" lint",
+    "lint:fix": "eslint . --fix && pnpm --recursive --filter \"./apps/*\" lint:fix",
+    "prepare": "husky",
+    "start": "pnpm --filter backend start:prod",
+    "test": "pnpm --recursive test",
+    "typecheck": "pnpm --recursive typecheck"
+  },
+  "devDependencies": {
+    "@agent-chat/eslint-config": "workspace:*",
+    "@agent-chat/tsconfig": "workspace:*",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "prettier-plugin-packagejson": "^3.0.2",
+    "typescript": "~6.0.3"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=12.0.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@agent-chat/tsconfig/react.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "types": ["vite/client", "vitest/globals"],
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"]
+}

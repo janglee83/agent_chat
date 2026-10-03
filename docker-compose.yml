@@ -1,0 +1,149 @@
+# DEV environment (this project is never deployed to production).
+#
+#   pnpm infra:up        postgres + redis only (run backend/frontend on the host with `pnpm dev`)
+#   pnpm docker:up       everything in Docker: postgres + redis + backend + frontend (hot reload)
+#   pnpm docker:up:obs   + grafana/otel-lgtm (Grafana, Loki, Tempo, Prometheus, Pyroscope)
+#   pnpm docker:down
+#
+#   Frontend  http://localhost:5173     (Vite HMR, proxies /api → backend)
+#   Backend   http://localhost:3000/api
+#   Grafana   http://localhost:3001     (admin / admin, observability profile)
+#
+# Migrations are run by hand in dev:  docker compose exec backend pnpm db:migrate
+# Host port taken? Override it, e.g. POSTGRES_HOST_PORT=55432 pnpm docker:up
+
+x-database-url: &database-url postgresql://agent_chat:agent_chat@postgres:5432/agent_chat?schema=public
+
+# Shared by deps / backend / frontend: repo bind-mounted, node_modules in named volumes
+# (Linux binaries must never land in the host's macOS node_modules, and vice versa).
+x-dev-node: &dev-node
+  build: .
+  image: agent-chat-dev:local
+  working_dir: /repo
+  volumes:
+    - .:/repo
+    - node-modules:/repo/node_modules
+    - backend-node-modules:/repo/apps/backend/node_modules
+    - frontend-node-modules:/repo/apps/frontend/node_modules
+    - eslint-config-node-modules:/repo/packages/eslint-config/node_modules
+    - tsconfig-node-modules:/repo/packages/tsconfig/node_modules
+
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: agent_chat
+      POSTGRES_PASSWORD: agent_chat
+      POSTGRES_DB: agent_chat
+    ports:
+      - '${POSTGRES_HOST_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U agent_chat -d agent_chat']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8.10.2-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_HOST_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # All-in-one: OTel Collector → Tempo (traces), Loki (logs), Prometheus (metrics),
+  # Pyroscope (profiles), with Grafana pre-wired. Pyroscope logs "leadership lost" / 503 for a
+  # few seconds while it elects a raft leader — that is normal startup, not an error.
+  lgtm:
+    image: grafana/otel-lgtm:0.35.0
+    profiles: ['observability']
+    ports:
+      - '${GRAFANA_HOST_PORT:-3001}:3000'
+      - '${OTLP_GRPC_HOST_PORT:-4317}:4317'
+      - '${OTLP_HTTP_HOST_PORT:-4318}:4318'
+    volumes:
+      - grafana-data:/data
+    healthcheck:
+      # run-all.sh creates this file once the collector and every backend are ready.
+      test: ['CMD', 'test', '-f', '/tmp/ready']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  # One-shot install into the shared volumes (also runs `prisma generate` via postinstall).
+  # Backend and frontend wait for it, so two containers never install concurrently.
+  deps:
+    <<: *dev-node
+    command: ['pnpm', 'install', '--frozen-lockfile']
+    restart: 'no'
+
+  backend:
+    <<: *dev-node
+    command: ['pnpm', '--filter', 'backend', 'dev:docker']
+    ports:
+      - '${BACKEND_HOST_PORT:-3000}:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      LOG_LEVEL: debug
+      DATABASE_URL: *database-url
+      REDIS_URL: redis://redis:6379
+      # OpenTelemetry (standard env vars, read by src/instrumentation.ts). Without the
+      # observability profile the exporter just fails quietly.
+      OTEL_SERVICE_NAME: agent-chat
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=dev
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_METRIC_EXPORT_INTERVAL: '15000'
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:3000/api/health']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    <<: *dev-node
+    command: ['pnpm', '--filter', 'frontend', 'dev', '--host', '0.0.0.0']
+    ports:
+      - '${FRONTEND_HOST_PORT:-5173}:5173'
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:3000
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5173/']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+volumes:
+  postgres-data:
+  redis-data:
+  grafana-data:
+  node-modules:
+  backend-node-modules:
+  frontend-node-modules:
+  eslint-config-node-modules:
+  tsconfig-node-modules:

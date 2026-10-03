@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Fail install on wrong Node/pnpm version and on unmet peer dependencies.
+engineStrict: true
+strictPeerDependencies: true
+# Only listed packages may run install scripts.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+  protobufjs: false
+  unrs-resolver: false
+minimumReleaseAgeExclude:
+  - nestjs-pino@5.3.1
+  - pino@10.4.0
